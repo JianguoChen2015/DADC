@@ -1,5 +1,5 @@
 '''
-DADC algorihtm 
+DADC algorithm 
 Domain Adaptive Density Clustering algorithm, submitted to IEE TKDE
 Created on 2017-9-27
 @author: Jianguo Chen
@@ -16,22 +16,27 @@ class DADC:
     maxdist = 0 
     #fileurl = '../datasets/ED_Hexagon/'    
     #fileurl = '../datasets/MDDM_D31/' 
-    fileurl = '../datasets/MDDM_G2/'       
+    #fileurl = '../datasets/MDDM_G2/'
+    #fileurl = '../datasets/VDD_Heartshaped/'  
+    #fileurl = '../datasets/Aggregation/' 
+    #fileurl = '../datasets/Compound/'
+    fileurl = '../datasets/G50/'           
     
     #1 main function of DADC
     def runAlgorithm(self): 
         #1) load input data
         fileName = self.fileurl + "dataset.csv" 
-        points, label = self.fo.readDatawithLabel(fileName)  #load input data and label
-        length = len(points)
-        self.pf.printScatter_Color_Marker(points,label)   # print original figure
-        
-        #points = self.fo.readDatawithoutLabel(fileName)   # load input data without label
+        #points, label = self.fo.readDatawithLabel(fileName)  #load input data and label
         #length = len(points)
-        #self.pf.printScatter(points) #print original figure without label            
+        #self.pf.printScatter_Color_Marker(points,label)   # print original figure
+        
+        points = self.fo.readDatawithoutLabel(fileName)   # load input data without label
+        length = len(points)
+        self.pf.printScatter(points) #print original figure without label            
         
         #2) compute rho density and delta distance
-        ll, dist = self.getDistance(points)    #compute distances 
+        ll, dist = self.getDistance(points)    #compute distances
+        self.maxdist = np.max(ll)   #Global maximum distance 
         #kls: set of neighbors; DD: domain density; DAD: domain-adaptive density; delta: delta distance       
         kls, DD, DAD,delta = self.DADCMethod(ll, dist, length)           
                 
@@ -44,13 +49,14 @@ class DADC:
         print(result)
         
         #5) clusterEnsemble
-        cfd_threshod = 0.6
-        cfd, result = self.clusterEnsemble(points, result, kls, DD, cfd_threshod)
-        while(np.max(cfd)> cfd_threshod and np.max(cfd)!=1):
+        if (np.max(result)>0):        
+            cfd_threshod = 0.6
             cfd, result = self.clusterEnsemble(points, result, kls, DD, cfd_threshod)
-            #print(result)                  
-            #self.pf.printPoltLenged(points,result)     
-        
+            while(np.max(cfd)> cfd_threshod and np.max(cfd)!=1):
+                cfd, result = self.clusterEnsemble(points, result, kls, DD, cfd_threshod)
+                #print(result)                  
+                #self.pf.printPoltLenged(points,result)     
+            
         #print clustering results       
         self.pf.printPoltLenged(points,result)     
          
@@ -68,30 +74,24 @@ class DADC:
         
         #3) compute domain density and domain-adaptive density
         DD = self.getDomainDensity(kls, kDen, kDist)  
-        #self.pf.printPolt3(rho)
         DAD = self.getDomainAdaptiveDensity(DD, dist,length)  #计算相对域密度
-        #self.pf.printPolt3(DAD) 
                 
         #4) compute delta distance
         #delta = self.computDeltaDistance(DAD,dist,length)
         delta = self.computDeltaDistance2(DAD, kls, kDist, dist)
         return kls, DD, DAD, delta   
        
+       
     #3 compute distances among data points
     def getDistance(self,points):
         length =len(points)
         dist = np.zeros((length, length))
         ll = []
-        begin = 0
-        while begin < length-1:
-            end = begin + 1
-            while end < length:
-                dd = np.linalg.norm(points[begin] - points[end])
-                dist[begin][end] = dd
-                dist[end][begin] = dd
+        for i in range(length-1):
+            for j in range(i+1, length):
+                dd = np.linalg.norm(points[i] - points[j])
+                dist[i][j] = dist[j][i] = dd
                 ll.append(dd)
-                end = end + 1
-            begin = begin + 1
         ll = np.array(ll)
         self.fo.writeData(dist,self.fileurl +'distance.csv')
         return ll,dist
@@ -102,8 +102,7 @@ class DADC:
         kls =np.zeros((length, k),dtype = np.integer)  #set of neighbors
         kDist = np.zeros((length, k)) #KNN distance
         kDen =  np.zeros((length, 3)) #KNN density
-        i =0
-        while i < length:
+        for i in range(length):
             ll = dist[i]   
             sortedll = np.sort(ll)      
             kDist[i] = sortedll[1:k+1]
@@ -118,7 +117,6 @@ class DADC:
             kDen[i][0] = 1 / np.average(kDist[i]) #get KNN-density
             kDen[i][1] = np.average(kDist[i]) #get the average distance of the k neighbors (KNN-distance)
             kDen[i][2] = sortedll[k]      #get the distance from xi to the k-th neighbor
-            i = i + 1 
         #print("knn list: ",kls)
         #print("Kdist: ",kDist)
         #print("knn density: ", kDen)       
@@ -133,8 +131,7 @@ class DADC:
     # output: domein density
     def getDomainDensity(self, kls, kDen, kDist): 
         DD = []
-        i=0
-        while i < len(kls):
+        for i in range(len(kls)):
             #di = sum(kDist[i])/len(kDist[i])
             Di = kDen[i][0] #get KNN-density of xi 
             for j in kls[i]: # for each neighbor
@@ -143,58 +140,45 @@ class DADC:
                     wkDenj = kDen[j][0] * (1/kDist[i,np.where(kls[i]==j)])  #wkDenj is an array
                     Di =Di + wkDenj[0] 
             DD.append(Di)
-            i = i+1
         self.fo.writeData(DD, self.fileurl +'DomainDensity.csv') 
-        #self.pf.printPolt3(DD)  # print graph for rho 
+        self.pf.printPolt3(DD)  # print graph for rho 
         return DD  
     
     
     #6 computer domain-adaptive density 
     #  Eliminate the difference in domain density between varying-density regions (VDD)
-    def getDomainAdaptiveDensity(self, WDD, dist, length):
+    def getDomainAdaptiveDensity(self, DD, dist, length):
         DAD = np.ones((length, 1))* self.MAX
-        maxDensity = np.max(WDD)
-        begin = 0
-        while begin < length:
-            if WDD[begin] < maxDensity:
-                end = 0
-                while end < length:
-                    if WDD[end] > WDD[begin] and dist[begin][end] < DAD[begin]:
-                        DAD[begin] = WDD[begin] * dist[begin][end] # WDD[begin] * (dist[begin][end]/self.maxdist) 
-                    end = end + 1
+        maxDensity = np.max(DD)
+        for i in range(length):
+            if DD[i] < maxDensity:
+                for j in range(length):
+                    if DD[j] > DD[i] and dist[i][j] < DAD[i]:
+                        DAD[i] = DD[i] * (dist[i][j]/self.maxdist) #WDD[i] * dist[i][j]
             else:
-                DAD[begin] = 0.0
-                end = 0
-                while end < length:
-                    if dist[begin][end] > DAD[begin]:
-                        DAD[begin] =WDD[begin] * dist[begin][end]
-                    end = end + 1
-            begin = begin + 1
+                DAD[i] = 0.0
+                for j in range(length):
+                    if dist[i][j] > DAD[i]:
+                        DAD[i] = DD[i] * dist[i][j]
         self.fo.writeData(DAD, self.fileurl +'DomainAdaptiveDensity.csv')
-        #self.pf.printPolt3(DAD)  # print graph for rho 
-        return DAD  
+        self.pf.printPolt3(DAD)  # print graph for rho 
+        return DD  
   
        
     #7 compute Delta distance
     def computDeltaDistance(self, rho, dist, length): 
         delta = np.ones((length, 1)) * self.MAX
         maxDensity = np.max(rho)
-        begin = 0
-        while begin < length:
-            if rho[begin] < maxDensity:
-                end = 0
-                while end < length:
-                    if rho[end] > rho[begin] and dist[begin][end] < delta[begin]:
-                        delta[begin] = dist[begin][end]
-                    end = end + 1
+        for i in range(length):
+            if rho[i] < maxDensity:
+                for j in range(length):
+                    if rho[j] > rho[i] and dist[i][j] < delta[i]:
+                        delta[i] = dist[i][j]
             else:
-                delta[begin] = 0.0
-                end = 0
-                while end < length:
-                    if dist[begin][end] > delta[begin]:
-                        delta[begin] = dist[begin][end]
-                    end = end + 1
-            begin = begin + 1
+                delta[i] = 0.0
+                for j in range(length):
+                    if dist[i][j] > delta[i]:
+                        delta[i] = dist[i][j]
         self.fo.writeData(delta, self.fileurl +'DADC-Delta.csv')
         return delta
 
@@ -341,7 +325,6 @@ class DADC:
         
     #15 compute the cluster fusion degree
     def getCFD(self, ids, ccd, cds):
-        cfd = np.zeros(np.array(ids).shape)
         cfd = (np.sqrt(3)/4)*(ids * ccd + ccd * cds + cds * ids)
         
         ids_max =np.max(ids)

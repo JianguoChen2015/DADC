@@ -6,13 +6,13 @@ from tools.PrintFigures import PrintFigures
 from pyclustering.cluster import cluster_visualizer
 from pyclustering.cluster.dbscan import dbscan
 from pyclustering.cluster.optics import optics
-from algorithms.DPC import MyDPC
-from algorithms.DADC import MyDADC
+from algorithms.DADC import DADC
+from algorithms.CFSFDP import CFSFDP
 
 fo = FileOperator()
 pf = PrintFigures()
-dpc = MyDPC()
-dadc = MyDADC()
+dpc = CFSFDP()
+dadc = DADC()
 
 #1 load dataset
 def loaddata_ED():

@@ -12,19 +12,25 @@ class CFSFDP:
     MAX = 1000000    
     fo = FileOperator()
     pf = PrintFigures() 
-    fileurl = '../datasets/ED_Hexagon/'
+    #fileurl = '../datasets/ED_Hexagon/'    
+    #fileurl = '../datasets/MDDM_D31/' 
+    #fileurl = '../datasets/MDDM_G2/'
+    #fileurl = '../datasets/VDD_Heartshaped/'  
+    #fileurl = '../datasets/Aggregation/' 
+    #fileurl = '../datasets/Compound/'
+    fileurl = '../datasets/G50/'
   
     #1 main function of CFSFDP
     def runAlgorithm(self): 
         #1) load input data
         fileName = self.fileurl + "dataset.csv" 
-        points, label = self.fo.readDatawithLabel(fileName)  #load input data and label
-        length = len(points)
-        self.pf.printScatter_Color_Marker(points,label)   # print original figure
-        
-        #points = self.fo.readDatawithoutLabel(fileName)   # load input data without label
+        #points, label = self.fo.readDatawithLabel(fileName)  #load input data and label
         #length = len(points)
-        #self.pf.printScatter(points) #print original figure without label            
+        #self.pf.printScatter_Color_Marker(points,label)   # print original figure
+        
+        points = self.fo.readDatawithoutLabel(fileName)   # load input data without label
+        length = len(points)
+        self.pf.printScatter(points) #print original figure without label            
         
         #2) compute rho density and delta distance
         ll, dist = self.getDistance(points)    #compute distances        
@@ -60,16 +66,12 @@ class CFSFDP:
         length =len(points)
         dist = np.zeros((length, length))
         ll = []
-        begin = 0
-        while begin < length-1:
-            end = begin + 1
-            while end < length:
-                dd = np.linalg.norm(points[begin] - points[end])
-                dist[begin][end] = dd
-                dist[end][begin] = dd
+        for i in range(length-1):
+            for j in range(i+1, length):
+                dd = np.linalg.norm(points[i] - points[j])
+                dist[i][j] = dd
+                dist[j][i] = dd
                 ll.append(dd)
-                end = end + 1
-            begin = begin + 1
         ll = np.array(ll)
         return ll,dist
     
@@ -77,18 +79,14 @@ class CFSFDP:
     #4 compute rho density
     def getlocalDensity(self, dist,dc, length):
         rho = np.zeros((length, 1))
-        begin = 0
-        while begin < length-1:
-            end = begin + 1
-            while end < length:
-                #k = math.exp(-(dist[begin][end]/dc) ** 2)  #using RBF Kernel function
-                #rho[begin] = rho[begin] + k 
-                #rho[end] = rho[end] + k     
-                if dist[begin][end] <= dc:
-                    rho[begin] = rho[begin] + 1
-                    rho[end] = rho[end] + 1
-                end = end + 1
-            begin = begin + 1  
+        for i in range(length-1):
+            for j in range(i+1, length):
+                #k = math.exp(-(dist[i][j]/dc) ** 2)  #using RBF Kernel function
+                #rho[i] = rho[i] + k 
+                #rho[j] = rho[j] + k     
+                if dist[i][j] <= dc:
+                    rho[i] = rho[i] + 1
+                    rho[j] = rho[j] + 1
         self.fo.writeData(rho, self.fileurl +  'DPC-rho.csv')  #save rho density   
         return rho      
     
@@ -97,22 +95,16 @@ class CFSFDP:
     def computDelta(self,rho,dist, length): 
         delta = np.ones((length, 1)) * self.MAX
         maxDensity = np.max(rho)
-        begin = 0
-        while begin < length:
-            if rho[begin] < maxDensity:
-                end = 0
-                while end < length:
-                    if rho[end] > rho[begin] and dist[begin][end] < delta[begin]:
-                        delta[begin] = dist[begin][end]
-                    end = end + 1
+        for i in range(length):
+            if rho[i] < maxDensity:
+                for j in range(length):
+                    if rho[j] > rho[i] and dist[i][j] < delta[i]:
+                        delta[i] = dist[i][j]
             else:
-                delta[begin] = 0.0
-                end = 0
-                while end < length:
-                    if dist[begin][end] > delta[begin]:
-                        delta[begin] = dist[begin][end]
-                    end = end + 1
-            begin = begin + 1
+                delta[i] = 0.0
+                for j in range(length):
+                    if dist[i][j] > delta[i]:
+                        delta[i] = dist[i][j]
         self.fo.writeData(delta, self.fileurl +  'DPC-delta.csv') #save Delta distance
         return delta
 
