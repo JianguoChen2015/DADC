@@ -6,8 +6,8 @@ from tools.PrintFigures import PrintFigures
 from pyclustering.cluster import cluster_visualizer
 from pyclustering.cluster.dbscan import dbscan
 from pyclustering.cluster.optics import optics
-from tools.DPC import MyDPC
-from tools.DADC import MyDADC
+from algorithms.DPC import MyDPC
+from algorithms.DADC import MyDADC
 
 fo = FileOperator()
 pf = PrintFigures()
