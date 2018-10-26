@@ -13,10 +13,11 @@ fo = FileOperator()
 pf = PrintFigures()
 dpc = CFSFDP()
 dadc = DADC()
+fileurl = '../datasets/ED_Hexagon/'
 
 #1 load dataset
 def loaddata_ED():
-    filepath="../datasets/ED_Hexagon.csv"
+    filepath="../datasets/ED_Hexagon/dataset.csv"
     # Input data in following format [ [0.1, 0.5], [0.3, 0.1], ... ].
     points, labels = fo.readDatawithLabel(filepath);
     return points, labels
@@ -40,27 +41,16 @@ def clustering_OPTICS(points):
     return clusters
 
 #2.3 clustering by DPC
-def clustering_DPC(points):
-    (ll,dist) = dpc.getDistance(points)    #1)计算每个点之间的距离（欧氏距离）        
-    (rho,delta) = dpc.ScienceMethod(ll, dist, len(points))#2)计算rho和delta(原始DPC算法)           
-        
-    centers = dpc.identifyCenters(rho, delta, len(points)) #3)识别聚类中心
-    result = dpc.assignDataPoint(dist, rho, centers, len(points)) #4)计算各点所属类簇            
-     
-    print("结果图") #绘制聚类结果图         
-    pf.printPoltLenged(points,result)    
+def clustering_DPC():
+    dpc.fileurl=fileurl
+    dpc.runAlgorithm()   
 
 
 #2.4 clustering by DADC
-def clustering_DADC(points):
-    (ll,dist) = dadc.getDistance(points)    #1)计算每个点之间的距离（欧氏距离）        
-    (rho,delta) = dadc.DACSDMethod(ll, dist, len(points))#2)计算rho和delta(DACSD算法)         
-        
-    centers = dadc.identifyCenters(rho, delta, len(points)) #3)识别聚类中心
-    result = dadc.assignDataPoint(dist, rho, centers, len(points)) #4)计算各点所属类簇            
-     
-    print("结果图") #绘制聚类结果图         
-    pf.printPoltLenged(points,result) 
+def clustering_DADC():
+    dadc.fileurl=fileurl
+    dadc.runAlgorithm()        
+    
     
 #2.5 clustering by DADC
 def clustering_DADC2(points):    
@@ -93,12 +83,16 @@ def printresults(clusters, points):
 
 
 points, labels = loaddata_ED()  
-#clusters = clustering_DBSCAN(points)
+clusters = clustering_DBSCAN(points)
+printresults(clusters, points)
+
 clusters = clustering_OPTICS(points)
+printresults(clusters, points)
+
 print(len(clusters))
 #clusters = clustering_DADC2(points)
-printresults(clusters, points)
-#clustering_DPC(points)
-#clustering_DADC(points)
+clustering_DPC()
+
+clustering_DADC()
 
 

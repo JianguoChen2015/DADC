@@ -19,20 +19,20 @@ class DADC:
     #fileurl = '../datasets/MDDM_G2/'
     #fileurl = '../datasets/VDD_Heartshaped/'  
     #fileurl = '../datasets/Aggregation/' 
-    #fileurl = '../datasets/Compound/'
-    fileurl = '../datasets/G50/'           
+    fileurl = '../datasets/Compound/'
+    #fileurl = '../datasets/G50/'           
     
     #1 main function of DADC
     def runAlgorithm(self): 
         #1) load input data
         fileName = self.fileurl + "dataset.csv" 
-        #points, label = self.fo.readDatawithLabel(fileName)  #load input data and label
-        #length = len(points)
-        #self.pf.printScatter_Color_Marker(points,label)   # print original figure
-        
-        points = self.fo.readDatawithoutLabel(fileName)   # load input data without label
+        points, label = self.fo.readDatawithLabel(fileName)  #load input data and label
         length = len(points)
-        self.pf.printScatter(points) #print original figure without label            
+        self.pf.printScatter_Color_Marker(points,label)   # print original figure
+        
+        #points = self.fo.readDatawithoutLabel(fileName)   # load input data without label
+        #length = len(points)
+        #self.pf.printScatter(points) #print original figure without label            
         
         #2) compute rho density and delta distance
         ll, dist = self.getDistance(points)    #compute distances
@@ -55,7 +55,7 @@ class DADC:
             while(np.max(cfd)> cfd_threshod and np.max(cfd)!=1):
                 cfd, result = self.clusterEnsemble(points, result, kls, DD, cfd_threshod)
                 #print(result)                  
-                #self.pf.printPoltLenged(points,result)     
+                self.pf.printPoltLenged(points,result)     
             
         #print clustering results       
         self.pf.printPoltLenged(points,result)     
@@ -114,7 +114,7 @@ class DADC:
                 j = j+len(temp2)
                 kls_temp.extend(list(temp2))         
             kls[i] =kls_temp[0:k]   #get the first k nearest neighbors for each point    
-            kDen[i][0] = 1 / np.average(kDist[i]) #get KNN-density
+            kDen[i][0] = 1 / np.average(kDist[i]) if (np.average(kDist[i])!=0) else 0 #get KNN-density
             kDen[i][1] = np.average(kDist[i]) #get the average distance of the k neighbors (KNN-distance)
             kDen[i][2] = sortedll[k]      #get the distance from xi to the k-th neighbor
         #print("knn list: ",kls)
@@ -292,15 +292,16 @@ class DADC:
             for j in range(cNum):
                 cj = cn.count(j)   #number of neighbors in j-th cluster
                 ci2= cn.count(ci)  #number of neighbors in i-th cluster 
-                c[i,j] = (np.sqrt(ci2 * cj)*2)/(ci2+cj) 
+                c[i,j] = (np.sqrt(ci2 * cj)*2)/(ci2+cj) if (cj!=0 and ci2!=0) else 0
         #print("crossover degree of each point:",c)
         
         #2)compute cluster crossover degree (CCD)
         ccd = np.zeros((cNum, cNum))
         for i in range(cNum):
             for j in range(i+1, cNum):
-                ccd[i,j] = ccd[j,i] = (sum(list(c[k,j] for k in range(len(result)) if result[k]==i))   #c(x, i->j) points in cluster i
-                                        + sum(list(c[k,i] for k in range(len(result)) if result[k]==j)))  #c(x, j->i) points in cluster j            
+                n = list(result).count(i)+list(result).count(j)  #Number of points in ci and cj
+                ccd[i,j] = ccd[j,i] = ((sum(list(c[k,j] for k in range(len(result)) if result[k]==i))   #c(x, i->j) points in cluster i
+                                        + sum(list(c[k,i] for k in range(len(result)) if result[k]==j)))/n)  #c(x, j->i) points in cluster j            
         return ccd   
             
     #14 compute cluster density stability
@@ -311,7 +312,7 @@ class DADC:
         for i in range(cNum):
             li = list(k for k in range(len(result)) if result[k]==i) #points in cluster ci
             den_avg = np.average(list(DD[k] for k in li))  #the average domain density of cluster ci
-            da[i] = np.sqrt(np.square(len(li))/np.sum(list(np.square(DD[k] - den_avg) for k in li)))
+            da[i] = 1/np.sqrt(np.sum(list(np.square(DD[k] - den_avg) for k in li))) if (np.sum(list(np.square(DD[k] - den_avg) for k in li))!=0) else 0
                     
         #2) compute the cds among clusters
         cds = np.zeros((cNum, cNum))
@@ -320,7 +321,7 @@ class DADC:
                 li = list(k for k in range(len(result)) if (result[k]==i or result[k]==j)) #points in cluster ci
                 denavg_ab = np.average(list(DD[k] for k in li))  #the average domain density of cluster ci 
                 den_ab =  np.sqrt(np.square(len(li))/np.sum(list(np.square(DD[k] - denavg_ab) for k in li)))
-                cds[i,j] = cds[j,i] = (da[i]+da[j])/(2* den_ab)
+                cds[i,j] = cds[j,i] = (2* den_ab)/(da[i]+da[j]) if (da[i] !=0 and da[j]!=0) else 0
         return cds
         
     #15 compute the cluster fusion degree
